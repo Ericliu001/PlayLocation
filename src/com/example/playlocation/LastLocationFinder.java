@@ -43,12 +43,12 @@ public class LastLocationFinder {
 	 * @param minDistance
 	 *            Minimum distance - meters - before we require a location
 	 *            update.
-	 * @param minTime
+	 * @param latestTime
 	 *            Minimum time - miniseconds - required between location
 	 *            updates.
 	 * @return The most accurate and / or timely previously detected location.
 	 */
-	public Location getLastBestLocation(int minDistance, long minTime) {
+	public Location getLastBestLocation(int minDistance, long latestTime) {
 		Location bestResult = null;
 		float bestAccuracy = Float.MAX_VALUE;
 		long bestTime = Long.MIN_VALUE;
@@ -67,11 +67,11 @@ public class LastLocationFinder {
 				float accuracy = location.getAccuracy();
 				long time = location.getTime();
 
-				if ((time > minTime && accuracy < bestAccuracy)) {
+				if ((time > latestTime && accuracy < bestAccuracy)) {
 					bestResult = location;
 					bestAccuracy = accuracy;
 					bestTime = time;
-				} else if (time < minTime && bestAccuracy == Float.MAX_VALUE
+				} else if (time < latestTime && bestAccuracy == Float.MAX_VALUE
 						&& time > bestTime) {
 					bestResult = location;
 					bestTime = time;
@@ -86,19 +86,27 @@ public class LastLocationFinder {
 		// This check simply implements the same conditions we set when
 		// requesting regular
 		// location updates every [minTime] and [minDistance].
-		if (locationListener != null
-				&& (bestTime < minTime || bestAccuracy > minDistance)) {
-			if (matchingProviders.contains(LocationManager.NETWORK_PROVIDER)) {
+		for (String provider : matchingProviders) {
+			locationManager.requestSingleUpdate(provider, locationListener,
+					null);
+		}
 
-				locationManager.requestSingleUpdate(
-						LocationManager.NETWORK_PROVIDER, locationListener,
-						null);
-			}
+		for (String provider : matchingProviders) {
+			Location location = locationManager.getLastKnownLocation(provider);
 
-			if (matchingProviders.contains(LocationManager.GPS_PROVIDER)) {
+			if (location != null) {
+				float accuracy = location.getAccuracy();
+				long time = location.getTime();
 
-				locationManager.requestSingleUpdate(
-						LocationManager.GPS_PROVIDER, locationListener, null);
+				if ((time > latestTime && accuracy < bestAccuracy)) {
+					bestResult = location;
+					bestAccuracy = accuracy;
+					bestTime = time;
+				} else if (time < latestTime && bestAccuracy == Float.MAX_VALUE
+						&& time > bestTime) {
+					bestResult = location;
+					bestTime = time;
+				}
 			}
 		}
 
